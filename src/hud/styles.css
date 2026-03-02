@@ -1,0 +1,128 @@
+#hud-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  font-family: 'Courier New', Courier, monospace;
+  color: rgba(0, 255, 100, 0.85);
+  text-shadow: 0 0 4px rgba(0, 255, 100, 0.4);
+  z-index: 10;
+  user-select: none;
+}
+
+/* Targeting reticle */
+#hud-reticle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 120px;
+}
+
+#hud-reticle svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Heading / compass */
+#hud-heading {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+/* Altitude (right side) */
+#hud-altitude {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  text-align: right;
+}
+
+/* Speed (left side) */
+#hud-speed {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+}
+
+/* Coordinates (bottom center) */
+#hud-coords {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+/* Mode indicator (top right) */
+#hud-mode {
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+/* Timestamp (top left) */
+#hud-time {
+  position: absolute;
+  top: 12px;
+  left: 20px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Data counts (bottom left) */
+#hud-data {
+  position: absolute;
+  bottom: 12px;
+  left: 20px;
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.7;
+}
+
+/* Controls help (bottom right) */
+#hud-controls {
+  position: absolute;
+  bottom: 12px;
+  right: 20px;
+  font-size: 10px;
+  line-height: 1.5;
+  opacity: 0.5;
+  text-align: right;
+}
+
+/* Mode-specific color overrides */
+.hud-flir {
+  color: rgba(255, 255, 255, 0.85) !important;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.3) !important;
+}
+
+.hud-flir svg line,
+.hud-flir svg circle {
+  stroke: rgba(255, 255, 255, 0.7) !important;
+}
+
+.hud-crt {
+  color: rgba(255, 180, 50, 0.85) !important;
+  text-shadow: 0 0 4px rgba(255, 180, 50, 0.3) !important;
+}
+
+.hud-crt svg line,
+.hud-crt svg circle {
+  stroke: rgba(255, 180, 50, 0.7) !important;
+}
