@@ -4,19 +4,87 @@ export interface CCTVCamera {
   lat: number;
   lon: number;
   imageUrl: string;
-  source: 'nyctmc' | 'tfl' | 'caltrans';
+  source: 'nyctmc' | 'tfl' | 'caltrans' | 'windy';
+  /** Windy webcam numeric ID (for token refresh) */
+  windyId?: number;
 }
 
 /** Source-specific refresh intervals in ms */
 export const SOURCE_REFRESH_MS: Record<CCTVCamera['source'], number> = {
-  nyctmc: 2000,          // ~2s real-time
-  tfl: 5 * 60 * 1000,   // ~5 min
+  nyctmc: 2000,             // ~2s real-time
+  tfl: 5 * 60 * 1000,      // ~5 min
   caltrans: 5 * 60 * 1000, // ~3-20 min
+  windy: 8 * 60 * 1000,    // image tokens expire at 10 min, refresh at 8
 };
 
 // Cache combined results (camera positions rarely change)
 let cache: { data: CCTVCamera[]; timestamp: number } | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// ---- Windy Webcams (Global, ~50k cameras) ----
+
+const WINDY_API_KEY = import.meta.env.VITE_WINDY_API_KEY as string | undefined;
+const WINDY_BASE = 'https://api.windy.com/webcams/api/v3/webcams';
+
+async function fetchWindyCameras(): Promise<CCTVCamera[]> {
+  if (!WINDY_API_KEY) return [];
+
+  const headers = { 'x-windy-api-key': WINDY_API_KEY };
+  const pageSize = 50;
+  const maxPages = 10; // 500 cameras global
+
+  const fetches = Array.from({ length: maxPages }, (_, i) =>
+    fetch(
+      `${WINDY_BASE}?include=images,location&limit=${pageSize}&offset=${i * pageSize}`,
+      { headers }
+    ).then((r) => {
+      if (!r.ok) throw new Error(`Windy: ${r.status}`);
+      return r.json();
+    })
+  );
+
+  const results = await Promise.allSettled(fetches);
+  const cameras: CCTVCamera[] = [];
+
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    const webcams = result.value.webcams || result.value || [];
+    if (!Array.isArray(webcams)) continue;
+    for (const wc of webcams) {
+      if (wc.status !== 'active') continue;
+      const imageUrl = wc.images?.current?.preview;
+      if (!imageUrl || !wc.location) continue;
+
+      cameras.push({
+        id: `windy-${wc.webcamId}`,
+        name: wc.title || 'Windy Webcam',
+        lat: wc.location.latitude,
+        lon: wc.location.longitude,
+        imageUrl,
+        source: 'windy',
+        windyId: wc.webcamId,
+      });
+    }
+  }
+  return cameras;
+}
+
+/** Re-fetch a fresh image URL for a Windy camera (tokens expire after 10 min) */
+export async function refreshWindyImageUrl(
+  webcamId: number
+): Promise<string | null> {
+  if (!WINDY_API_KEY) return null;
+  try {
+    const resp = await fetch(`${WINDY_BASE}/${webcamId}?include=images`, {
+      headers: { 'x-windy-api-key': WINDY_API_KEY },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.images?.current?.preview ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ---- NYC TMC (New York City, ~2s refresh) ----
 
@@ -167,6 +235,7 @@ export async function fetchAllCameras(): Promise<CCTVCamera[]> {
     fetchNycTmcCameras(),
     fetchTflCameras(),
     fetchCaltransCameras(),
+    fetchWindyCameras(),
   ]);
 
   const combined: CCTVCamera[] = [];

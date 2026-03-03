@@ -3,7 +3,7 @@ import { geoToWorld, getGlobeRadius, getAltitudeMeters } from '../utils/geo';
 import { fetchAllCameras, type CCTVCamera } from '../data/cctvClient';
 import { Poller } from '../data/poller';
 
-const MAX_CAMERAS = 2500;
+const MAX_CAMERAS = 3500;
 
 export class CCTVLayer {
   private group: THREE.Group;

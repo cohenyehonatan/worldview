@@ -5,7 +5,7 @@ import type { Aircraft } from '../data/adsbClient';
 import { isMilitary } from '../data/adsbClient';
 import type { SatEntry } from '../layers/satellites';
 import type { SatPosition } from '../utils/orbits';
-import { SOURCE_REFRESH_MS, type CCTVCamera } from '../data/cctvClient';
+import { SOURCE_REFRESH_MS, refreshWindyImageUrl, type CCTVCamera } from '../data/cctvClient';
 import './styles.css';
 
 /**
@@ -164,7 +164,7 @@ export class HUDOverlay {
     this.selectedSatellite = null;
     this.selectedSatPosition = null;
     this.loadCameraImage(cam.imageUrl);
-    this.startCameraImageRefresh(cam.imageUrl, cam.source);
+    this.startCameraImageRefresh(cam);
   }
 
   closeCamera(): void {
@@ -194,12 +194,18 @@ export class HUDOverlay {
     img.src = url;
   }
 
-  private startCameraImageRefresh(url: string, source: CCTVCamera['source']): void {
+  private startCameraImageRefresh(cam: CCTVCamera): void {
     this.stopCameraImageRefresh();
-    const interval = SOURCE_REFRESH_MS[source];
-    this.cameraImageRefreshTimer = setInterval(() => {
-      const bustUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-      this.loadCameraImage(bustUrl);
+    const interval = SOURCE_REFRESH_MS[cam.source];
+    this.cameraImageRefreshTimer = setInterval(async () => {
+      if (cam.source === 'windy' && cam.windyId) {
+        // Windy image tokens expire — re-fetch from API for a fresh URL
+        const freshUrl = await refreshWindyImageUrl(cam.windyId);
+        if (freshUrl) this.loadCameraImage(freshUrl);
+      } else {
+        const bustUrl = cam.imageUrl + (cam.imageUrl.includes('?') ? '&' : '?') + '_t=' + Date.now();
+        this.loadCameraImage(bustUrl);
+      }
     }, interval);
   }
 
