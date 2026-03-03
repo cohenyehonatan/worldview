@@ -151,7 +151,7 @@ export class AircraftLayer {
     canvasHeight: number,
     thresholdPx: number = 30
   ): Aircraft | null {
-    if (this.aircraftData.length === 0) return null;
+    if (!this.group.visible || this.aircraftData.length === 0) return null;
 
     const projected = new THREE.Vector3();
     let bestDist = Infinity;

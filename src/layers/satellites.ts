@@ -150,7 +150,7 @@ export class SatelliteLayer {
     canvasHeight: number,
     thresholdPx: number = 40
   ): { entry: SatEntry; index: number } | null {
-    if (this.satellites.length === 0) return null;
+    if (!this.group.visible || this.satellites.length === 0) return null;
 
     const projected = new THREE.Vector3();
     let bestDist = Infinity;

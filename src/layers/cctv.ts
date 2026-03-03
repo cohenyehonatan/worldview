@@ -3,7 +3,7 @@ import { geoToWorld, getGlobeRadius, getAltitudeMeters } from '../utils/geo';
 import { fetchAllCameras, type CCTVCamera } from '../data/cctvClient';
 import { Poller } from '../data/poller';
 
-const MAX_CAMERAS = 3500;
+const MAX_CAMERAS = 6000;
 
 export class CCTVLayer {
   private group: THREE.Group;
@@ -61,7 +61,7 @@ export class CCTVLayer {
     canvasHeight: number,
     thresholdPx: number = 30
   ): CCTVCamera | null {
-    if (this.cameras.length === 0) return null;
+    if (!this.group.visible || this.cameras.length === 0) return null;
 
     const projected = new THREE.Vector3();
     let bestDist = Infinity;

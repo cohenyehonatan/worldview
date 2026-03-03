@@ -24,7 +24,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 // ---- Windy Webcams (Global, ~50k cameras) ----
 
 const WINDY_API_KEY = import.meta.env.VITE_WINDY_API_KEY as string | undefined;
-const WINDY_BASE = 'https://api.windy.com/webcams/api/v3/webcams';
+const WINDY_BASE = '/api/windy/webcams/api/v3/webcams';
 
 async function fetchWindyCameras(): Promise<CCTVCamera[]> {
   if (!WINDY_API_KEY) return [];
@@ -252,6 +252,11 @@ export async function fetchAllCameras(): Promise<CCTVCamera[]> {
   }
 
   cache = { data: combined, timestamp: Date.now() };
-  console.log(`[CCTV] Fetched ${combined.length} cameras`);
+
+  const counts: Record<string, number> = {};
+  for (const cam of combined) {
+    counts[cam.source] = (counts[cam.source] || 0) + 1;
+  }
+  console.log(`[CCTV] Fetched ${combined.length} cameras:`, counts);
   return combined;
 }

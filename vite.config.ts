@@ -28,6 +28,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/nyctmc/, ''),
       },
+      '/api/windy': {
+        target: 'https://api.windy.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/windy/, ''),
+      },
     },
   },
 });
