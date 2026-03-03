@@ -5,7 +5,7 @@ import type { Aircraft } from '../data/adsbClient';
 import { isMilitary } from '../data/adsbClient';
 import type { SatEntry } from '../layers/satellites';
 import type { SatPosition } from '../utils/orbits';
-import type { CCTVCamera } from '../data/cctvClient';
+import { SOURCE_REFRESH_MS, type CCTVCamera } from '../data/cctvClient';
 import './styles.css';
 
 /**
@@ -164,7 +164,7 @@ export class HUDOverlay {
     this.selectedSatellite = null;
     this.selectedSatPosition = null;
     this.loadCameraImage(cam.imageUrl);
-    this.startCameraImageRefresh(cam.imageUrl);
+    this.startCameraImageRefresh(cam.imageUrl, cam.source);
   }
 
   closeCamera(): void {
@@ -179,7 +179,6 @@ export class HUDOverlay {
   }
 
   private loadCameraImage(url: string): void {
-    this.cameraImageLoaded = false;
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -187,17 +186,21 @@ export class HUDOverlay {
       this.cameraImageLoaded = true;
     };
     img.onerror = () => {
-      console.warn('[CCTV] Failed to load image:', url);
+      // Keep showing previous frame on refresh failures
+      if (!this.cameraImageLoaded) {
+        console.warn('[CCTV] Failed to load image:', url);
+      }
     };
     img.src = url;
   }
 
-  private startCameraImageRefresh(url: string): void {
+  private startCameraImageRefresh(url: string, source: CCTVCamera['source']): void {
     this.stopCameraImageRefresh();
+    const interval = SOURCE_REFRESH_MS[source];
     this.cameraImageRefreshTimer = setInterval(() => {
       const bustUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
       this.loadCameraImage(bustUrl);
-    }, 30000);
+    }, interval);
   }
 
   private stopCameraImageRefresh(): void {

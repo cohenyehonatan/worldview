@@ -4,12 +4,53 @@ export interface CCTVCamera {
   lat: number;
   lon: number;
   imageUrl: string;
-  source: 'tfl' | 'caltrans';
+  source: 'nyctmc' | 'tfl' | 'caltrans';
 }
+
+/** Source-specific refresh intervals in ms */
+export const SOURCE_REFRESH_MS: Record<CCTVCamera['source'], number> = {
+  nyctmc: 2000,          // ~2s real-time
+  tfl: 5 * 60 * 1000,   // ~5 min
+  caltrans: 5 * 60 * 1000, // ~3-20 min
+};
 
 // Cache combined results (camera positions rarely change)
 let cache: { data: CCTVCamera[]; timestamp: number } | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// ---- NYC TMC (New York City, ~2s refresh) ----
+
+interface NycTmcCamera {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  isOnline: string;
+  imageUrl: string;
+}
+
+async function fetchNycTmcCameras(): Promise<CCTVCamera[]> {
+  const resp = await fetch('/api/nyctmc/api/cameras');
+  if (!resp.ok) throw new Error(`NYC TMC API error: ${resp.status}`);
+  const entries: NycTmcCamera[] = await resp.json();
+
+  const cameras: CCTVCamera[] = [];
+  for (const entry of entries) {
+    if (entry.isOnline !== 'true') continue;
+    if (!entry.latitude || !entry.longitude) continue;
+
+    cameras.push({
+      id: `nyctmc-${entry.id}`,
+      name: entry.name || 'NYC Camera',
+      lat: entry.latitude,
+      lon: entry.longitude,
+      // Proxy the image URL through our Vite dev server
+      imageUrl: `/api/nyctmc/api/cameras/${entry.id}/image`,
+      source: 'nyctmc',
+    });
+  }
+  return cameras;
+}
 
 // ---- TfL JamCams (London) ----
 
@@ -123,6 +164,7 @@ export async function fetchAllCameras(): Promise<CCTVCamera[]> {
   }
 
   const results = await Promise.allSettled([
+    fetchNycTmcCameras(),
     fetchTflCameras(),
     fetchCaltransCameras(),
   ]);

@@ -23,6 +23,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/caltrans/, ''),
       },
+      '/api/nyctmc': {
+        target: 'https://webcams.nyctmc.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/nyctmc/, ''),
+      },
     },
   },
 });
