@@ -30,7 +30,7 @@ export class ShaderPipeline {
   ) {
     this.composer = new EffectComposer(renderer);
 
-    // Render pass (renders the 3D scene)
+    // Pass 1: Render the main 3D scene
     this.composer.addPass(new RenderPass(scene, camera));
 
     // Bloom (used with NVG for phosphor glow)
@@ -64,6 +64,29 @@ export class ShaderPipeline {
     // Anti-aliasing (final pass)
     const smaaEffect = new SMAAEffect({ preset: SMAAPreset.MEDIUM });
     this.composer.addPass(new EffectPass(camera, smaaEffect));
+  }
+
+  /**
+   * Insert the HUD render pass right after the main scene render
+   * but before any effect passes, so shaders apply to the HUD too.
+   */
+  setHUDScene(hudScene: THREE.Scene, hudCamera: THREE.OrthographicCamera): void {
+    const hudPass = new RenderPass(hudScene, hudCamera);
+    hudPass.clear = false; // Composite on top, don't clear the main scene
+    // Insert at index 1 (right after the main RenderPass)
+    this.composer.removePass(this.composer.passes[1]);
+    // We need to rebuild the pass list with the HUD pass at index 1
+    const passes = [...this.composer.passes];
+    // Remove all passes
+    while (this.composer.passes.length > 0) {
+      this.composer.removePass(this.composer.passes[0]);
+    }
+    // Re-add: main scene, then HUD, then the rest
+    this.composer.addPass(passes[0]); // main RenderPass
+    this.composer.addPass(hudPass);
+    for (let i = 1; i < passes.length; i++) {
+      this.composer.addPass(passes[i]);
+    }
   }
 
   setMode(mode: ViewMode): void {

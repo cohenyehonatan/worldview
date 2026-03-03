@@ -24,7 +24,8 @@ interface AdsbResponse {
   total: number;
 }
 
-const BASE_URL = 'https://api.adsb.lol/v2';
+// Proxied through Vite dev server to avoid CORS issues
+const BASE_URL = '/api/adsb/v2';
 
 /**
  * Fetch aircraft near a lat/lon within a radius (nautical miles).

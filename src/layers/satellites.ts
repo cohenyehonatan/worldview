@@ -7,10 +7,12 @@ import {
   createSatRec,
   propagateToDate,
   computeOrbitPath,
+  type SatPosition,
 } from '../utils/orbits';
+import { getGlobeRadius } from '../utils/geo';
 import type { SatRec } from 'satellite.js';
 
-interface SatEntry {
+export interface SatEntry {
   omm: SatelliteOMM;
   satrec: SatRec;
 }
@@ -19,6 +21,7 @@ const MAX_SATELLITES = 300;
 
 export class SatelliteLayer {
   private group: THREE.Group;
+  private camera: THREE.PerspectiveCamera;
   private satellites: SatEntry[] = [];
   private pointsMesh: THREE.Points | null = null;
   private selectedIndex: number = -1;
@@ -26,7 +29,8 @@ export class SatelliteLayer {
   private positions: Float32Array;
   private colors: Float32Array;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+    this.camera = camera;
     this.group = new THREE.Group();
     this.group.name = 'satellite-layer';
     scene.add(this.group);
@@ -118,8 +122,70 @@ export class SatelliteLayer {
     this.selectedIndex = -1;
   }
 
+  getSelectedIndex(): number {
+    return this.selectedIndex;
+  }
+
   getSatellites(): SatEntry[] {
     return this.satellites;
+  }
+
+  /** Get live propagated position for a satellite by index */
+  getSatPosition(index: number): SatPosition | null {
+    if (index < 0 || index >= this.satellites.length) return null;
+    return propagateToDate(this.satellites[index].satrec, new Date());
+  }
+
+  /**
+   * Pick the nearest satellite to a screen-space click point.
+   * Returns the SatEntry and its index if within threshold, else null.
+   */
+  pick(
+    ndcX: number,
+    ndcY: number,
+    canvasWidth: number,
+    canvasHeight: number,
+    thresholdPx: number = 40
+  ): { entry: SatEntry; index: number } | null {
+    if (this.satellites.length === 0) return null;
+
+    const projected = new THREE.Vector3();
+    let bestDist = Infinity;
+    let bestIndex = -1;
+
+    for (let i = 0; i < this.satellites.length; i++) {
+      const wx = this.positions[i * 3];
+      const wy = this.positions[i * 3 + 1];
+      const wz = this.positions[i * 3 + 2];
+
+      // Skip uninitialized positions
+      if (wx === 0 && wy === 0 && wz === 0) continue;
+
+      projected.set(wx, wy, wz).project(this.camera);
+
+      // Skip points behind the camera
+      if (projected.z > 1) continue;
+
+      const screenX = (projected.x * 0.5 + 0.5) * canvasWidth;
+      const screenY = (-projected.y * 0.5 + 0.5) * canvasHeight;
+
+      const clickX = (ndcX * 0.5 + 0.5) * canvasWidth;
+      const clickY = (-ndcY * 0.5 + 0.5) * canvasHeight;
+
+      const dx = screenX - clickX;
+      const dy = screenY - clickY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIndex = i;
+      }
+    }
+
+    if (bestIndex >= 0 && bestDist <= thresholdPx) {
+      return { entry: this.satellites[bestIndex], index: bestIndex };
+    }
+    return null;
   }
 
   private createPointsMesh(): void {
@@ -139,7 +205,7 @@ export class SatelliteLayer {
     geometry.setDrawRange(0, this.satellites.length);
 
     const material = new THREE.PointsMaterial({
-      size: 0.008,
+      size: 0.008 * getGlobeRadius(),
       vertexColors: true,
       transparent: true,
       opacity: 0.9,
@@ -147,6 +213,7 @@ export class SatelliteLayer {
     });
 
     this.pointsMesh = new THREE.Points(geometry, material);
+    this.pointsMesh.frustumCulled = false;
     this.group.add(this.pointsMesh);
   }
 

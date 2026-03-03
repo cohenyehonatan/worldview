@@ -43,9 +43,9 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
   scanLine = scanLine * 0.5 + 0.5;
   color *= mix(1.0, scanLine, scanLineBrightness);
 
-  // Vignette
+  // Vignette — wide enough to keep HUD text at edges visible
   float dist = distance(distUv, vec2(0.5));
-  float vignette = smoothstep(0.7, 0.35, dist);
+  float vignette = smoothstep(0.9, 0.55, dist);
   color *= vignette;
 
   // Static noise

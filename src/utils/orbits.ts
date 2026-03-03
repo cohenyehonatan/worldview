@@ -1,6 +1,6 @@
 import * as satellite from 'satellite.js';
 import * as THREE from 'three';
-import { EARTH_RADIUS, EARTH_RADIUS_KM } from './geo';
+import { geoToWorld } from './geo';
 import type { SatelliteOMM } from '../data/celestrakClient';
 
 export interface SatPosition {
@@ -49,16 +49,8 @@ export function propagateToDate(
   const lonDeg = satellite.degreesLong(geo.longitude);
   const altKm = geo.height;
 
-  // Convert to scene coordinates
-  const lat = THREE.MathUtils.degToRad(latDeg);
-  const lon = THREE.MathUtils.degToRad(lonDeg);
-  const r = EARTH_RADIUS + (altKm / EARTH_RADIUS_KM) * EARTH_RADIUS;
-
-  const position = new THREE.Vector3(
-    r * Math.cos(lat) * Math.cos(lon),
-    r * Math.sin(lat),
-    r * Math.cos(lat) * Math.sin(lon)
-  );
+  // Convert to scene coordinates (handles both fallback and tiles mode)
+  const position = geoToWorld(latDeg, lonDeg, altKm);
 
   const vel = posVel.velocity;
   const velocityKmS = Math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2);

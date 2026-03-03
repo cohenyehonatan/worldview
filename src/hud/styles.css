@@ -1,3 +1,32 @@
+/* ===== Theme variables (default = NVG green) ===== */
+:root {
+  --hud-color: rgba(0, 255, 100, 0.85);
+  --hud-color-dim: rgba(0, 255, 100, 0.4);
+  --hud-color-faint: rgba(0, 255, 100, 0.15);
+  --hud-color-solid: #00ff66;
+  --hud-accent: #ff4444;
+  --hud-bg: rgba(0, 8, 16, 0.88);
+}
+
+.theme-flir {
+  --hud-color: rgba(255, 255, 255, 0.85);
+  --hud-color-dim: rgba(255, 255, 255, 0.3);
+  --hud-color-faint: rgba(255, 255, 255, 0.15);
+  --hud-color-solid: #ffffff;
+  --hud-accent: #ff6644;
+  --hud-bg: rgba(0, 0, 0, 0.88);
+}
+
+.theme-crt {
+  --hud-color: rgba(255, 180, 50, 0.85);
+  --hud-color-dim: rgba(255, 180, 50, 0.3);
+  --hud-color-faint: rgba(255, 180, 50, 0.15);
+  --hud-color-solid: #ffb432;
+  --hud-accent: #ff4444;
+  --hud-bg: rgba(8, 4, 0, 0.88);
+}
+
+/* ===== HUD overlay ===== */
 #hud-overlay {
   position: absolute;
   top: 0;
@@ -6,10 +35,15 @@
   height: 100%;
   pointer-events: none;
   font-family: 'Courier New', Courier, monospace;
-  color: rgba(0, 255, 100, 0.85);
-  text-shadow: 0 0 4px rgba(0, 255, 100, 0.4);
+  color: var(--hud-color);
+  text-shadow: 0 0 4px var(--hud-color-dim);
   z-index: 10;
   user-select: none;
+}
+
+#hud-overlay svg line,
+#hud-overlay svg circle {
+  stroke: var(--hud-color);
 }
 
 /* Targeting reticle */
@@ -106,23 +140,66 @@
   text-align: right;
 }
 
-/* Mode-specific color overrides */
-.hud-flir {
-  color: rgba(255, 255, 255, 0.85) !important;
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.3) !important;
+/* ===== Aircraft info panel ===== */
+#aircraft-panel {
+  position: absolute;
+  top: 60px;
+  left: 20px;
+  width: 280px;
+  background: var(--hud-bg);
+  border: 1px solid var(--hud-color-faint);
+  border-radius: 4px;
+  padding: 14px 16px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+  color: var(--hud-color);
+  text-shadow: 0 0 3px var(--hud-color-dim);
+  z-index: 20;
+  pointer-events: auto;
+  line-height: 1.7;
 }
 
-.hud-flir svg line,
-.hud-flir svg circle {
-  stroke: rgba(255, 255, 255, 0.7) !important;
+#aircraft-panel .panel-callsign {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 1px;
 }
 
-.hud-crt {
-  color: rgba(255, 180, 50, 0.85) !important;
-  text-shadow: 0 0 4px rgba(255, 180, 50, 0.3) !important;
+#aircraft-panel .panel-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
 }
 
-.hud-crt svg line,
-.hud-crt svg circle {
-  stroke: rgba(255, 180, 50, 0.7) !important;
+#aircraft-panel .panel-tag-mil {
+  border: 1px solid var(--hud-accent);
+  color: var(--hud-accent);
+}
+
+#aircraft-panel .panel-tag-civ {
+  border: 1px solid var(--hud-color-solid);
+  color: var(--hud-color-solid);
+}
+
+#aircraft-panel .panel-section {
+  border-top: 1px solid var(--hud-color-faint);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+#aircraft-panel .panel-grid {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  row-gap: 2px;
+}
+
+#aircraft-panel .panel-label {
+  opacity: 0.5;
+}
+
+#aircraft-panel .panel-footer {
+  margin-top: 10px;
+  text-align: right;
+  opacity: 0.35;
+  font-size: 10px;
 }

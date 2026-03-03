@@ -14,6 +14,7 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "3d-tiles-renderer": "^0.4.21",
     "postprocessing": "^6.38.3",
     "satellite.js": "^6.0.2",
     "three": "^0.183.2"
