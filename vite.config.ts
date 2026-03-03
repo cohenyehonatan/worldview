@@ -13,6 +13,16 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/overpass/, ''),
       },
+      '/api/tfl': {
+        target: 'https://api.tfl.gov.uk',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/tfl/, ''),
+      },
+      '/api/caltrans': {
+        target: 'https://cwwp2.dot.ca.gov',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/caltrans/, ''),
+      },
     },
   },
 });

@@ -8,6 +8,7 @@ import { AircraftLayer } from './layers/aircraft';
 import { SatelliteLayer } from './layers/satellites';
 import { TrafficLayer } from './layers/traffic';
 import { HUDOverlay } from './hud/overlay';
+import { CCTVLayer } from './layers/cctv';
 import { setupKeyboardControls } from './ui/controls';
 
 async function init() {
@@ -71,11 +72,13 @@ async function init() {
   const aircraftLayer = new AircraftLayer(scene, camera);
   const satelliteLayer = new SatelliteLayer(scene, camera);
   const trafficLayer = new TrafficLayer(scene, camera);
+  const cctvLayer = new CCTVLayer(scene, camera);
 
   // Start data feeds
   aircraftLayer.start();
   satelliteLayer.load();
   trafficLayer.start();
+  cctvLayer.start();
 
   // --- Click to select aircraft or satellite ---
   renderer.domElement.addEventListener('click', (e) => {
@@ -101,15 +104,25 @@ async function init() {
       return;
     }
 
+    // Try CCTV third
+    const cam = cctvLayer.pick(ndcX, ndcY, rect.width, rect.height);
+    if (cam) {
+      hud.showCamera(cam);
+      aircraftLayer.clearFlightPath();
+      satelliteLayer.clearOrbit();
+      return;
+    }
+
     // Clicked empty space — close everything
     hud.closeAircraft();
     hud.closeSatellite();
+    hud.closeCamera();
     satelliteLayer.clearOrbit();
     aircraftLayer.clearFlightPath();
   });
 
   // --- Keyboard Controls ---
-  setupKeyboardControls(pipeline, hud, aircraftLayer, satelliteLayer, trafficLayer);
+  setupKeyboardControls(pipeline, hud, aircraftLayer, satelliteLayer, trafficLayer, cctvLayer);
 
   // --- Terrain altitude raycasting ---
   const terrainRaycaster = new THREE.Raycaster();
@@ -153,6 +166,7 @@ async function init() {
     aircraftLayer.updateFlightPath(aircraftLayer.getAircraftData());
     satelliteLayer.update();
     trafficLayer.update();
+    cctvLayer.update();
 
     // Feed live satellite position to HUD panel
     const satIdx = hud.getSelectedSatelliteIndex();
@@ -174,7 +188,8 @@ async function init() {
       aircraftLayer.getAircraftData().length,
       satelliteLayer.getSatellites().length,
       trafficLayer.getParticleCount(),
-      terrainAltM
+      terrainAltM,
+      cctvLayer.getCameras().length
     );
 
     pipeline.render();
@@ -187,7 +202,7 @@ async function init() {
     'color: #00ff66; font-weight: bold;'
   );
   console.log(
-    '%cControls: [1] Normal [2] NVG [3] FLIR [4] CRT [H] Toggle HUD',
+    '%cControls: [1] Normal [2] NVG [3] FLIR [4] CRT [H] HUD [C] CCTV',
     'color: #888;'
   );
 }

@@ -3,17 +3,20 @@ import type { HUDOverlay } from '../hud/overlay';
 import type { AircraftLayer } from '../layers/aircraft';
 import type { SatelliteLayer } from '../layers/satellites';
 import type { TrafficLayer } from '../layers/traffic';
+import type { CCTVLayer } from '../layers/cctv';
 
 export function setupKeyboardControls(
   pipeline: ShaderPipeline,
   hud: HUDOverlay,
   aircraftLayer: AircraftLayer,
   satelliteLayer: SatelliteLayer,
-  trafficLayer: TrafficLayer
+  trafficLayer: TrafficLayer,
+  cctvLayer: CCTVLayer
 ): void {
   let aircraftVisible = true;
   let satelliteVisible = true;
   let trafficVisible = true;
+  let cctvVisible = true;
 
   window.addEventListener('keydown', (e) => {
     switch (e.key) {
@@ -52,6 +55,11 @@ export function setupKeyboardControls(
       case 'T':
         trafficVisible = !trafficVisible;
         trafficLayer.setVisible(trafficVisible);
+        break;
+      case 'c':
+      case 'C':
+        cctvVisible = !cctvVisible;
+        cctvLayer.setVisible(cctvVisible);
         break;
     }
   });

@@ -5,6 +5,7 @@ import type { Aircraft } from '../data/adsbClient';
 import { isMilitary } from '../data/adsbClient';
 import type { SatEntry } from '../layers/satellites';
 import type { SatPosition } from '../utils/orbits';
+import type { CCTVCamera } from '../data/cctvClient';
 import './styles.css';
 
 /**
@@ -32,6 +33,7 @@ export class HUDOverlay {
   private acCount = 0;
   private satCount = 0;
   private tfcCount = 0;
+  private camCount = 0;
 
   // Aircraft panel state
   private selectedAircraft: Aircraft | null = null;
@@ -39,6 +41,12 @@ export class HUDOverlay {
   // Satellite panel state
   private selectedSatellite: { entry: SatEntry; index: number } | null = null;
   private selectedSatPosition: SatPosition | null = null;
+
+  // CCTV panel state
+  private selectedCamera: CCTVCamera | null = null;
+  private cameraImage: HTMLImageElement | null = null;
+  private cameraImageLoaded = false;
+  private cameraImageRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     const w = window.innerWidth;
@@ -80,6 +88,7 @@ export class HUDOverlay {
         this.selectedAircraft = null;
         this.selectedSatellite = null;
         this.selectedSatPosition = null;
+        this.closeCamera();
       }
     });
   }
@@ -99,6 +108,7 @@ export class HUDOverlay {
     this.selectedAircraft = ac;
     this.selectedSatellite = null; // mutually exclusive
     this.selectedSatPosition = null;
+    this.closeCamera();
   }
 
   closeAircraft(): void {
@@ -126,6 +136,7 @@ export class HUDOverlay {
     this.selectedSatellite = { entry, index };
     this.selectedSatPosition = null;
     this.selectedAircraft = null; // mutually exclusive
+    this.closeCamera();
   }
 
   closeSatellite(): void {
@@ -145,6 +156,57 @@ export class HUDOverlay {
     this.selectedSatPosition = pos;
   }
 
+  // ---- CCTV panel ----
+
+  showCamera(cam: CCTVCamera): void {
+    this.selectedCamera = cam;
+    this.selectedAircraft = null;
+    this.selectedSatellite = null;
+    this.selectedSatPosition = null;
+    this.loadCameraImage(cam.imageUrl);
+    this.startCameraImageRefresh(cam.imageUrl);
+  }
+
+  closeCamera(): void {
+    this.selectedCamera = null;
+    this.cameraImage = null;
+    this.cameraImageLoaded = false;
+    this.stopCameraImageRefresh();
+  }
+
+  isCameraPanelOpen(): boolean {
+    return this.selectedCamera !== null;
+  }
+
+  private loadCameraImage(url: string): void {
+    this.cameraImageLoaded = false;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      this.cameraImage = img;
+      this.cameraImageLoaded = true;
+    };
+    img.onerror = () => {
+      console.warn('[CCTV] Failed to load image:', url);
+    };
+    img.src = url;
+  }
+
+  private startCameraImageRefresh(url: string): void {
+    this.stopCameraImageRefresh();
+    this.cameraImageRefreshTimer = setInterval(() => {
+      const bustUrl = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
+      this.loadCameraImage(bustUrl);
+    }, 30000);
+  }
+
+  private stopCameraImageRefresh(): void {
+    if (this.cameraImageRefreshTimer) {
+      clearInterval(this.cameraImageRefreshTimer);
+      this.cameraImageRefreshTimer = null;
+    }
+  }
+
   // ---- Update ----
 
   update(
@@ -152,7 +214,8 @@ export class HUDOverlay {
     aircraftCount: number,
     satelliteCount: number,
     trafficCount: number = 0,
-    terrainAltitudeM: number | null = null
+    terrainAltitudeM: number | null = null,
+    cctvCount: number = 0
   ): void {
     // Compute values
     const geo = worldToGeo(camera.position);
@@ -186,6 +249,7 @@ export class HUDOverlay {
     this.acCount = aircraftCount;
     this.satCount = satelliteCount;
     this.tfcCount = trafficCount;
+    this.camCount = cctvCount;
 
     // Redraw
     this.draw();
@@ -335,19 +399,21 @@ export class HUDOverlay {
     ctx.font = '11px "Courier New", monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = color;
-    ctx.fillText(`AC: ${this.acCount}  SAT: ${this.satCount}  TFC: ${this.tfcCount}`, 20, h - 10);
+    ctx.fillText(`AC: ${this.acCount}  SAT: ${this.satCount}  TFC: ${this.tfcCount}  CAM: ${this.camCount}`, 20, h - 10);
 
     // Controls hint (bottom right)
     ctx.font = '10px "Courier New", monospace';
     ctx.textAlign = 'right';
     ctx.fillStyle = dimColor;
-    ctx.fillText('[1-4] Mode  [H] HUD  [A] AC  [S] SAT  [T] TFC', w - 20, h - 10);
+    ctx.fillText('[1-4] Mode  [H] HUD  [A] AC  [S] SAT  [T] TFC  [C] CAM', w - 20, h - 10);
 
     // -- Info panels (mutually exclusive) --
     if (this.selectedAircraft) {
       this.drawAircraftPanel();
     } else if (this.selectedSatellite) {
       this.drawSatellitePanel();
+    } else if (this.selectedCamera) {
+      this.drawCCTVPanel();
     }
 
     ctx.restore();
@@ -424,6 +490,133 @@ export class HUDOverlay {
     ];
 
     this.drawInfoPanel(name, isClassified ? 'MIL' : 'SAT', isClassified ? accent : color, rows);
+  }
+
+  private drawCCTVPanel(): void {
+    const cam = this.selectedCamera!;
+    const { ctx } = this;
+    const color = this.getColor();
+    const dimColor = this.getDimColor();
+    const faintColor = this.getFaintColor();
+    const bgColor = this.getBgColor();
+
+    const px = 20;
+    const py = 55;
+    const pw = 280;
+    const pad = 14;
+    const lineH = 20;
+
+    // Image dimensions (16:9 within panel)
+    const imgW = pw - pad * 2;
+    const imgH = Math.round(imgW * (9 / 16));
+
+    // Data rows below image
+    const dataRows: [string, string][] = [
+      ['SOURCE', cam.source.toUpperCase()],
+      ['LAT', cam.lat.toFixed(4)],
+      ['LON', cam.lon.toFixed(4)],
+    ];
+
+    // Total height: header + separator + image + gap + data rows + footer
+    const ph = pad + lineH + 6 + imgH + 10 + dataRows.length * lineH + pad + 10;
+
+    // Background
+    ctx.fillStyle = bgColor;
+    ctx.strokeStyle = faintColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    let y = py + pad;
+
+    // Header: camera name + CCTV tag
+    ctx.font = 'bold 13px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = color;
+    const maxNameW = pw - pad * 2 - 60;
+    let displayName = cam.name;
+    while (ctx.measureText(displayName).width > maxNameW && displayName.length > 3) {
+      displayName = displayName.slice(0, -1);
+    }
+    if (displayName !== cam.name) displayName += '...';
+    ctx.fillText(displayName, px + pad, y);
+
+    // Tag badge
+    ctx.font = '10px "Courier New", monospace';
+    const tagLabel = 'CCTV';
+    const tagW = ctx.measureText(tagLabel).width + 10;
+    const tagX = px + pw - pad - tagW;
+    const tagColor = 'rgba(0, 200, 255, 0.85)';
+    ctx.strokeStyle = tagColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(tagX, y, tagW, 16);
+    ctx.fillStyle = tagColor;
+    ctx.textAlign = 'center';
+    ctx.fillText(tagLabel, tagX + tagW / 2, y + 3);
+
+    y += lineH;
+
+    // Separator
+    ctx.strokeStyle = faintColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + pad, y);
+    ctx.lineTo(px + pw - pad, y);
+    ctx.stroke();
+    y += 6;
+
+    // Image preview
+    const imgX = px + pad;
+    const imgY = y;
+
+    if (this.cameraImageLoaded && this.cameraImage) {
+      ctx.drawImage(this.cameraImage, imgX, imgY, imgW, imgH);
+      ctx.strokeStyle = faintColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(imgX, imgY, imgW, imgH);
+
+      // LIVE indicator
+      ctx.font = '9px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(255, 50, 50, 0.9)';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('\u25CF LIVE', imgX + imgW - 4, imgY + 4);
+    } else {
+      // Loading placeholder
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(imgX, imgY, imgW, imgH);
+      ctx.strokeStyle = faintColor;
+      ctx.strokeRect(imgX, imgY, imgW, imgH);
+      ctx.font = '11px "Courier New", monospace';
+      ctx.fillStyle = dimColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LOADING FEED...', imgX + imgW / 2, imgY + imgH / 2);
+    }
+
+    y += imgH + 10;
+
+    // Data rows
+    ctx.font = '12px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+
+    for (const [label, value] of dataRows) {
+      ctx.fillStyle = dimColor;
+      ctx.fillText(label, px + pad, y);
+      ctx.fillStyle = color;
+      ctx.fillText(value, px + pad + 90, y);
+      y += lineH;
+    }
+
+    // Footer
+    ctx.font = '10px "Courier New", monospace';
+    ctx.fillStyle = dimColor;
+    ctx.textAlign = 'right';
+    ctx.fillText('ESC to close', px + pw - pad, y + 4);
   }
 
   /** Shared panel drawing for both aircraft and satellite info */
